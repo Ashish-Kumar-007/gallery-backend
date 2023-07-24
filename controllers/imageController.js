@@ -1,3 +1,4 @@
+// Importing required models and utility functions
 const Albums = require("../models/Albums");
 const Comments = require("../models/Comments");
 const Images = require("../models/Images");
@@ -8,24 +9,19 @@ const getFileURL = require("../utils/cloudinaryConfig");
 // Controller for POST /upload
 const uploadImage = async (req, res) => {
   try {
-    console.log(req.body);
+    // Extracting necessary data from request
     const { caption } = req.body;
     if (!req.file) {
-      res.status(400).json({
-        message: "No file uploaded!",
-      });
-      return;
+      return res.status(400).json({ message: "No file uploaded!" });
     }
     if (!caption) {
-      res.status(400).json({
-        message: "No caption written!",
-      });
-      return;
+      return res.status(400).json({ message: "No caption written!" });
     }
+
     const file = req.file;
     const url = await getFileURL(file);
-    console.log(url);
 
+    // Creating a new image document and saving it to the database
     const newImage = new Images({
       caption: caption,
       filename: file.originalname,
@@ -33,9 +29,7 @@ const uploadImage = async (req, res) => {
     });
     await newImage.save();
 
-    res
-      .status(200)
-      .json({ message: "Image uploaded successfully", image: newImage });
+    res.status(200).json({ message: "Image uploaded successfully", image: newImage });
   } catch (error) {
     console.error("Error uploading image:", error);
     res.status(500).json({ error: "Internal server error" });
@@ -45,6 +39,7 @@ const uploadImage = async (req, res) => {
 // Controller for GET /get-images
 const getAllImages = async (req, res) => {
   try {
+    // Fetching all images from the database
     const images = await Images.find();
     res.status(200).json(images);
   } catch (error) {
@@ -57,54 +52,28 @@ const getAllImages = async (req, res) => {
 const getImageDetails = async (req, res) => {
   try {
     const imageId = req.params.id;
+
+    // Finding the image with the given id
     const image = await Images.findOne({ _id: imageId });
     if (!image) {
       return res.status(404).json({ error: "Image not found" });
     }
 
-    Images.findOne({ _id: imageId })
-      .then((image) => {
-        if (!image) {
-          return res.status(404).json({ error: "Image not found" });
-        } else {
-          const imageDetails = {
-            caption: image.caption,
-            path: image.path,
-            image_url: image.image_url,
-            album_Id: image.album_Id,
-            likes_count: 0,
-            comments: [],
-          };
-          Likes.find({ image_id: image._id })
-            .then((likesData) => {
-              console.log(likesData.length);
-              imageDetails.likes_count =
-                likesData.length == 0 ? 0 : likesData[0].likes_count;
+    // Fetching additional data related to the image (likes and comments)
+    const likesData = await Likes.find({ image_id: image._id });
+    const commentsData = await Comments.find({ image_Id: image._id });
 
-              Comments.find({ image_Id: image._id })
-                .then((commentsData) => {
-                  imageDetails.comments = commentsData;
-                  // console.log(
-                  //   "Image details with like counts and comments:",
-                  //   imageDetails
-                  // );
-                  res.status(201).json(imageDetails);
-                })
-                .catch((err) => {
-                  console.error("Error finding comments:", err);
-                  res.status(500).json({ error: "Internal server error" });
-                });
-            })
-            .catch((err) => {
-              console.error("Error finding likes:", err);
-              res.status(500).json({ error: "Internal server error" });
-            });
-        }
-      })
-      .catch((err) => {
-        console.error("Error in finding image:", err);
-        res.status(500).json({ error: "Internal server error" });
-      });
+    // Preparing the image details response
+    const imageDetails = {
+      caption: image.caption,
+      path: image.path,
+      image_url: image.image_url,
+      album_Id: image.album_Id,
+      likes_count:  likesData.length == 0 ? 0 : likesData[0].likes_count,
+      comments: commentsData,
+    };
+
+    res.status(201).json(imageDetails);
   } catch (error) {
     console.error("Error fetching image:", error);
     res.status(500).json({ error: "Internal server error" });
@@ -115,33 +84,18 @@ const getImageDetails = async (req, res) => {
 const createAlbum = async (req, res) => {
   try {
     const { title, description } = req.body;
-    console.log(req.body);
     const file = req.file;
     const url = await getFileURL(file);
-    console.log(url);
 
-    // Create a new album document
+    // Creating a new album document and saving it to the database
     const album = new Albums({
       title: title,
       description: description,
       album_image: url,
     });
-
-    // Save the new album to the database
     await album.save();
-    console.log(album._id);
-    // Create a new linking document to associate the image with the album
-    // const newAlbumLink = new ImageAlbumlink({
-    //   imageId: image_id,  // Use "imageId" instead of "image_id" as per the schema
-    //   albumId: album._id, // Use "albumId" instead of "album_id" as per the schema
-    // });
 
-    // // Save the linking document to the database
-    // await newAlbumLink.save();
-
-    res
-      .status(201)
-      .json({ message: "Album created successfully", album: album });
+    res.status(201).json({ message: "Album created successfully", album: album });
   } catch (error) {
     console.error("Error creating album:", error);
     res.status(500).json({ error: "Internal server error" });
@@ -171,7 +125,6 @@ const addImageToAlbum = async (req, res) => {
       album_id: albumId,
     });
 
-    console.log(result);
     res.status(200).json({ message: `Image added to ${albumTitle}` });
   } catch (error) {
     console.error("Error:", error);
@@ -182,6 +135,7 @@ const addImageToAlbum = async (req, res) => {
 // Controller for GET /albums
 const getAlbums = async (req, res) => {
   try {
+    // Fetching all albums from the database
     const albums = await Albums.find();
     res.status(200).json(albums);
   } catch (error) {
@@ -212,7 +166,6 @@ const getAlbumDetails = async (req, res) => {
       return res.status(404).json({ error: "No images found in the album" });
     }
 
-    console.log(albumImages);
     res.status(200).json(albumImages);
   } catch (error) {
     console.error("Error fetching album:", error);
@@ -231,7 +184,7 @@ const addLike = async (req, res) => {
       { $inc: { likes_count: 1 } }, // Increment the likes_count field by 1
       { upsert: true } // Create a new document if it doesn't exist
     );
-    console.log(liked);
+
     res.status(200).json({ message: "Image liked successfully" });
   } catch (error) {
     console.error("Error adding like:", error);
@@ -239,34 +192,30 @@ const addLike = async (req, res) => {
   }
 };
 
-// Controller for GET /search
+// Controller for POST /images/:id/add-comment
 const addComment = async (req, res) => {
   try {
-    console.log(req.params.id, req.body);
     const { comment } = req.body;
     const imageId = req.params.id;
 
+    // Creating a new comment document and saving it to the database
     const newComment = new Comments({
       image_Id: imageId,
       comment: comment,
     });
-
     await newComment.save();
 
-    res
-      .status(200)
-      .json({ message: "commented successfully", comment: newComment });
+    res.status(200).json({ message: "Commented successfully", comment: newComment });
   } catch (error) {
     console.error("Error adding comment:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 };
 
-// Controller for POST /images/:id
+// Controller for POST /search
 const search = async (req, res) => {
   try {
     const { keyword } = req.body;
-    console.log(req.body);
 
     // Use regular expression with case-insensitive search for more flexible matching
     const regex = new RegExp(keyword, "i");
@@ -279,21 +228,22 @@ const search = async (req, res) => {
   }
 };
 
-async function filter(req, res) {
-  const { criteria } = req.body;
-  let filterOptions = {};
-  console.log(criteria);
-  if (criteria === "most_commented") {
-    filterOptions = { createdAt: -1 };
-  } else if (criteria === "most_liked") {
-    filterOptions = { likes_count: -1 };
-  } else if (criteria === "most_recent") {
-    filterOptions = { createdAt: -1 };
-  } else {
-    throw new Error("Invalid filter criteria");
-  }
-
+// Controller for POST /filter
+const filter = async (req, res) => {
   try {
+    const { criteria } = req.body;
+    let filterOptions = {};
+
+    if (criteria === "most_commented") {
+      filterOptions = { comments_count: -1 };
+    } else if (criteria === "most_liked") {
+      filterOptions = { likes_count: -1 };
+    } else if (criteria === "most_recent") {
+      filterOptions = { createdAt: -1 };
+    } else {
+      throw new Error("Invalid filter criteria");
+    }
+
     let images;
     if (criteria === "most_commented" || criteria === "most_liked") {
       // Get all images and populate likes and comments counts
@@ -323,12 +273,12 @@ async function filter(req, res) {
       }).lean();
     }
 
-    return images;
+    res.status(200).json(images);
   } catch (err) {
     console.error("Error retrieving filtered images:", err);
-    throw err;
+    res.status(500).json({ error: "Internal server error" });
   }
-}
+};
 
 module.exports = {
   uploadImage,
