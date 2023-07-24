@@ -3,7 +3,7 @@ const Albums = require("../models/Albums");
 const Comments = require("../models/Comments");
 const Images = require("../models/Images");
 const Likes = require("../models/Likes");
-const ImageAlbumlink = require("../models/ImageAlbumlink");
+const ImageAlbumlink = require("../models/ImageAlbumLink");
 const getFileURL = require("../utils/cloudinaryConfig");
 
 // Controller for POST /upload
