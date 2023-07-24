@@ -13,6 +13,6 @@ router.get("/albums/:id", controller.getAlbumDetails);
 router.post("/images/:id/add-like", controller.addLike);
 router.post("/images/:id/add-comment", controller.addComment);
 router.get("/search", controller.search);
-router.get("/filter", controller.filter);
+router.get("/filter-images", controller.filter);
 
 module.exports = router;

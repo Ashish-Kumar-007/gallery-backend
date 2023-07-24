@@ -29,7 +29,9 @@ const uploadImage = async (req, res) => {
     });
     await newImage.save();
 
-    res.status(200).json({ message: "Image uploaded successfully", image: newImage });
+    res
+      .status(200)
+      .json({ message: "Image uploaded successfully", image: newImage });
   } catch (error) {
     console.error("Error uploading image:", error);
     res.status(500).json({ error: "Internal server error" });
@@ -69,7 +71,7 @@ const getImageDetails = async (req, res) => {
       path: image.path,
       image_url: image.image_url,
       album_Id: image.album_Id,
-      likes_count:  likesData.length == 0 ? 0 : likesData[0].likes_count,
+      likes_count: likesData.length == 0 ? 0 : likesData[0].likes_count,
       comments: commentsData,
     };
 
@@ -95,7 +97,9 @@ const createAlbum = async (req, res) => {
     });
     await album.save();
 
-    res.status(201).json({ message: "Album created successfully", album: album });
+    res
+      .status(201)
+      .json({ message: "Album created successfully", album: album });
   } catch (error) {
     console.error("Error creating album:", error);
     res.status(500).json({ error: "Internal server error" });
@@ -205,7 +209,9 @@ const addComment = async (req, res) => {
     });
     await newComment.save();
 
-    res.status(200).json({ message: "Commented successfully", comment: newComment });
+    res
+      .status(200)
+      .json({ message: "Commented successfully", comment: newComment });
   } catch (error) {
     console.error("Error adding comment:", error);
     res.status(500).json({ error: "Internal server error" });
@@ -220,7 +226,7 @@ const search = async (req, res) => {
     // Use regular expression with case-insensitive search for more flexible matching
     const regex = new RegExp(keyword, "i");
     const images = await Images.find({ caption: regex }).lean();
-
+    console.log(images);
     res.status(200).json({ images });
   } catch (error) {
     console.error("Error", error);
@@ -231,30 +237,20 @@ const search = async (req, res) => {
 // Controller for POST /filter
 const filter = async (req, res) => {
   try {
-    const { criteria } = req.body;
-    let filterOptions = {};
-
-    if (criteria === "most_commented") {
-      filterOptions = { comments_count: -1 };
-    } else if (criteria === "most_liked") {
-      filterOptions = { likes_count: -1 };
-    } else if (criteria === "most_recent") {
-      filterOptions = { createdAt: -1 };
-    } else {
-      throw new Error("Invalid filter criteria");
-    }
+    const { filter } = req.query;
+    const criteria = filter.toString().toLowerCase(); // Convert the filter to lowercase for consistency
 
     let images;
-    if (criteria === "most_commented" || criteria === "most_liked") {
+    if (criteria === "most commented" || criteria === "most liked") {
       // Get all images and populate likes and comments counts
       images = await Images.find({}).lean();
 
       for (let i = 0; i < images.length; i++) {
         const imageId = images[i]._id;
-
+        // console.log(imageId);
         // Get likes count
         const likes = await Likes.find({ image_id: imageId }).lean();
-        images[i].likes_count = likes.length;
+        images[i].likes_count = likes.likes_count;
 
         // Get comments count
         const comments = await Comments.find({ image_Id: imageId }).lean();
@@ -262,15 +258,17 @@ const filter = async (req, res) => {
       }
 
       // Sort the images based on the filter options
-      images.sort((a, b) => b[filterOptions] - a[filterOptions]);
+      images.sort((a, b) => b[`${criteria}_count`] - a[`${criteria}_count`]);
 
       // Get the top 5 images
       images = images.slice(0, 5);
-    } else if (criteria === "most_recent") {
+    } else if (criteria === "most recent") {
       images = await Images.find({}, null, {
-        sort: filterOptions,
+        sort: { createdAt: -1 }, // Sort by the createdAt field in descending order (most recent first)
         limit: 5,
       }).lean();
+    } else {
+      throw new Error("Invalid filter criteria");
     }
 
     res.status(200).json(images);
@@ -279,6 +277,7 @@ const filter = async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 };
+
 
 module.exports = {
   uploadImage,
