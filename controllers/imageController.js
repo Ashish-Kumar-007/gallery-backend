@@ -5,7 +5,12 @@ const Images = require("../models/Images");
 const Likes = require("../models/Likes");
 const ImageAlbumlink = require("../models/ImageAlbumLink");
 const getFileURL = require("../utils/cloudinaryConfig");
+const { EventEmitter } = require("events");
 
+const myEmitter = new EventEmitter();
+
+// Increase the maximum listeners limit to 20
+myEmitter.setMaxListeners(20);
 // Controller for POST /upload
 const uploadImage = async (req, res) => {
   try {
@@ -82,100 +87,7 @@ const getImageDetails = async (req, res) => {
   }
 };
 
-// Controller for POST /create-album
-const createAlbum = async (req, res) => {
-  try {
-    const { title, description } = req.body;
-    const file = req.file;
-    const url = await getFileURL(file);
 
-    // Creating a new album document and saving it to the database
-    const album = new Albums({
-      title: title,
-      description: description,
-      album_image: url,
-    });
-    await album.save();
-
-    res
-      .status(201)
-      .json({ message: "Album created successfully", album: album });
-  } catch (error) {
-    console.error("Error creating album:", error);
-    res.status(500).json({ error: "Internal server error" });
-  }
-};
-
-// Controller for POST /:id/add-image
-const addImageToAlbum = async (req, res) => {
-  try {
-    const { imageId, albumTitle } = req.body;
-    const albumId = req.params.id;
-
-    // Check if the combination of imageId and albumId already exists in a single object
-    const existingLink = await ImageAlbumlink.findOne({
-      image_id: imageId,
-      album_id: albumId,
-    });
-
-    if (existingLink) {
-      // If the link already exists, return a message indicating it
-      return res.status(400).json({ message: "Already exists!" });
-    }
-
-    // If the link doesn't exist, create a new entry in the ImageAlbumlink collection
-    const result = await ImageAlbumlink.create({
-      image_id: imageId,
-      album_id: albumId,
-    });
-
-    res.status(200).json({ message: `Image added to ${albumTitle}` });
-  } catch (error) {
-    console.error("Error:", error);
-    res.status(500).json({ error: "Internal server error" });
-  }
-};
-
-// Controller for GET /albums
-const getAlbums = async (req, res) => {
-  try {
-    // Fetching all albums from the database
-    const albums = await Albums.find();
-    res.status(200).json(albums);
-  } catch (error) {
-    console.error("Error fetching albums:", error);
-    res.status(500).json({ error: "Internal server error" });
-  }
-};
-
-// Controller for GET /albums/:id
-const getAlbumDetails = async (req, res) => {
-  try {
-    const albumId = req.params.id;
-
-    // Find all the entries in the ImageAlbumlink collection with the given album_id
-    const albumLinks = await ImageAlbumlink.find({ album_id: albumId });
-
-    if (!albumLinks || albumLinks.length === 0) {
-      return res.status(404).json({ error: "Album not found" });
-    }
-
-    // Get all the image ids from the album links
-    const imageIds = albumLinks.map((link) => link.image_id);
-
-    // Find all the images with the image ids from the album
-    const albumImages = await Images.find({ _id: { $in: imageIds } });
-
-    if (!albumImages || albumImages.length === 0) {
-      return res.status(404).json({ error: "No images found in the album" });
-    }
-
-    res.status(200).json(albumImages);
-  } catch (error) {
-    console.error("Error fetching album:", error);
-    res.status(500).json({ error: "Internal server error" });
-  }
-};
 
 // Controller for POST /images/:id/add-like
 const addLike = async (req, res) => {
@@ -218,77 +130,11 @@ const addComment = async (req, res) => {
   }
 };
 
-// Controller for POST /search
-const search = async (req, res) => {
-  try {
-    const { keyword } = req.body;
-
-    // Use regular expression with case-insensitive search for more flexible matching
-    const regex = new RegExp(keyword, "i");
-    const images = await Images.find({ caption: regex }).lean();
-    console.log(images);
-    res.status(200).json({ images });
-  } catch (error) {
-    console.error("Error", error);
-    res.status(500).json({ error: "Internal server error" });
-  }
-};
-
-// Controller for POST /filter
-const filter = async (req, res) => {
-  try {
-    const { filter } = req.query;
-    const criteria = filter.toString().toLowerCase(); // Convert the filter to lowercase for consistency
-
-    let images;
-    if (criteria === "most commented" || criteria === "most liked") {
-      // Get all images and populate likes and comments counts
-      images = await Images.find({}).lean();
-
-      for (let i = 0; i < images.length; i++) {
-        const imageId = images[i]._id;
-        // console.log(imageId);
-        // Get likes count
-        const likes = await Likes.find({ image_id: imageId }).lean();
-        images[i].likes_count = likes.likes_count;
-
-        // Get comments count
-        const comments = await Comments.find({ image_Id: imageId }).lean();
-        images[i].comments_count = comments.length;
-      }
-
-      // Sort the images based on the filter options
-      images.sort((a, b) => b[`${criteria}_count`] - a[`${criteria}_count`]);
-
-      // Get the top 5 images
-      images = images.slice(0, 5);
-    } else if (criteria === "most recent") {
-      images = await Images.find({}, null, {
-        sort: { createdAt: -1 }, // Sort by the createdAt field in descending order (most recent first)
-        limit: 5,
-      }).lean();
-    } else {
-      throw new Error("Invalid filter criteria");
-    }
-
-    res.status(200).json(images);
-  } catch (err) {
-    console.error("Error retrieving filtered images:", err);
-    res.status(500).json({ error: "Internal server error" });
-  }
-};
-
 
 module.exports = {
   uploadImage,
   getAllImages,
   getImageDetails,
-  createAlbum,
-  addImageToAlbum,
-  getAlbums,
-  getAlbumDetails,
   addLike,
   addComment,
-  search,
-  filter,
 };
