@@ -2,13 +2,12 @@ const mongoose = require("mongoose");
 
 const likeSchema = new mongoose.Schema(
   {
-    image_Id: {
+    image_id: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Images",
     },
     likes_count: {
       type: Number,
-      required: true,
       default: 0
     },
   },

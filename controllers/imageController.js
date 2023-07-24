@@ -102,8 +102,8 @@ const getImageDetails = async (req, res) => {
 // Controller for POST /create-album
 const createAlbum = async (req, res) => {
   try {
-    const { title, description} = req.body;
-    console.log(req.body)
+    const { title, description } = req.body;
+    console.log(req.body);
     const file = req.file;
     const url = await getFileURL(file);
     console.log(url);
@@ -112,7 +112,7 @@ const createAlbum = async (req, res) => {
     const album = new Albums({
       title: title,
       description: description,
-      album_image: url
+      album_image: url,
     });
 
     // Save the new album to the database
@@ -165,22 +165,15 @@ const getAlbumDetails = async (req, res) => {
 // Controller for POST /images/:id
 const addLike = async (req, res) => {
   try {
-    console.log(req.params.id);
     const imageId = req.params.id;
 
-    // Fetch the existing likes for the image from the Likes collection
-    const existingLikes = await Likes.findOne({ image_id: imageId });
-
-    // Calculate the new likes_count based on the existing likes
-    const likes_count = existingLikes ? existingLikes.likes_count + 1 : 1;
-
-    // Create or update the like entry for the image
-    await Likes.updateOne(
+    // Find the existing Likes document by imageId and update it or create a new one if it doesn't exist
+    await Likes.findOneAndUpdate(
       { image_id: imageId },
-      { image_id: imageId, likes_count: likes_count },
-      { upsert: true } // Use upsert option to create a new entry if it doesn't exist
+      { $inc: { likes_count: 1 } }, // Increment the likes_count field by 1
+      { upsert: true } // Create a new document if it doesn't exist
     );
-
+console.log(Likes);
     res.status(200).json({ message: "Image liked successfully" });
   } catch (error) {
     console.error("Error adding like:", error);
@@ -188,21 +181,24 @@ const addLike = async (req, res) => {
   }
 };
 
+
 // Controller for POST /images/:id
 const addComment = async (req, res) => {
   try {
     console.log(req.params.id, req.body);
-    const {comment} = req.body
+    const { comment } = req.body;
     const imageId = req.params.id;
 
     const newComment = new Comments({
       image_Id: imageId,
-      comment: comment
-    })
+      comment: comment,
+    });
 
-    await newComment.save()
+    await newComment.save();
 
-    res.status(200).json({ message: "commented successfully", comment: newComment });
+    res
+      .status(200)
+      .json({ message: "commented successfully", comment: newComment });
   } catch (error) {
     console.error("Error adding comment:", error);
     res.status(500).json({ error: "Internal server error" });
@@ -243,5 +239,5 @@ module.exports = {
   getAlbumDetails,
   addLike,
   removeLike,
-  addComment
+  addComment,
 };
